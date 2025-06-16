@@ -5,7 +5,6 @@ docs
 .csslintrc
 .idea
 coverage
-lib
 .vscode
 **/.DS_Store
 examples

@@ -1,0 +1,81 @@
+import { EntityCollection } from "./EntityCollection";
+import { GeoObject } from "./GeoObject";
+import { Vec3 } from "../math/Vec3";
+import { Vec4 } from "../math/Vec4";
+import { Quat } from "../math/Quat";
+import { Object3d } from "../Object3d";
+import { InstanceData } from "./InstanceData";
+import { Renderer } from "../renderer/Renderer";
+import { RenderNode } from "../scene/RenderNode";
+export declare const VERTEX_BUFFER = 0;
+export declare const RTC_POSITION_BUFFER = 1;
+export declare const RGBA_BUFFER = 2;
+export declare const NORMALS_BUFFER = 3;
+export declare const INDEX_BUFFER = 4;
+export declare const QROT_BUFFER = 5;
+export declare const SIZE_BUFFER = 6;
+export declare const PICKINGCOLOR_BUFFER = 7;
+export declare const VISIBLE_BUFFER = 8;
+export declare const TEXCOORD_BUFFER = 9;
+export declare const TRANSLATE_BUFFER = 10;
+export declare const LOCALPOSITION_BUFFER = 11;
+export declare class GeoObjectHandler {
+    static __counter__: number;
+    protected __id: number;
+    /**
+     * Picking rendering option.
+     * @public
+     * @type {boolean}
+     */
+    pickingEnabled: boolean;
+    protected _entityCollection: EntityCollection;
+    _renderNode: RenderNode | null;
+    _renderer: Renderer | null;
+    protected _geoObjects: GeoObject[];
+    protected _instanceDataMap: Map<string, InstanceData>;
+    protected _instanceDataMapValues: InstanceData[];
+    protected _dataTagUpdateQueue: InstanceData[];
+    protected _relativeCenter: Vec3;
+    protected _rtcEyePositionHigh: Float32Array;
+    protected _rtcEyePositionLow: Float32Array;
+    constructor(entityCollection: EntityCollection);
+    initProgram(): void;
+    setRenderNode(renderNode: RenderNode): void;
+    setColorTextureTag(src: string, tag: string): void;
+    setNormalTextureTag(src: string, tag: string): void;
+    setMetallicRoughnessTextureTag(src: string, tag: string): void;
+    setObjectSrc(src: string, tag: string): void;
+    _updateInstanceData(object: Object3d, tag: string): void;
+    protected _addGeoObjectToArray(geoObject: GeoObject): void;
+    protected _bindCommon(): void;
+    _displayOpaquePASS(): void;
+    _displayTransparentPASS(): void;
+    protected _depthPASS(): void;
+    drawDepth(): void;
+    drawPicking(): void;
+    protected _pickingPASS(): void;
+    _loadColorTexture(tagData: InstanceData): Promise<void>;
+    _loadNormalTexture(tagData: InstanceData): Promise<void>;
+    _loadMetallicRoughnessTexture(tagData: InstanceData): Promise<void>;
+    setQRotArr(tagData: InstanceData, tagDataIndex: number, qRot: Quat): void;
+    setVisibility(tagData: InstanceData, tagDataIndex: number, visibility: boolean): void;
+    setRTCPositionArr(tagData: InstanceData, tagDataIndex: number, rtcPositionHigh: Vec3, rtcPositionLow: Vec3): void;
+    setRgbaArr(tagData: InstanceData, tagDataIndex: number, rgba: Vec4): void;
+    setPickingColorArr(tagData: InstanceData, tagDataIndex: number, color: Vec3): void;
+    setScaleArr(tagData: InstanceData, tagDataIndex: number, scale: Vec3): void;
+    setTranslateArr(tagData: InstanceData, tagDataIndex: number, translate: Vec3): void;
+    setLocalPositionArr(tagData: InstanceData, tagDataIndex: number, localPosition: Vec3): void;
+    protected _updateTag(dataTag: InstanceData): void;
+    update(): void;
+    _removeAll(): void;
+    clear(): void;
+    getRTCPosition(pos: Vec3, rtcPositionHigh: Vec3, rtcPositionLow: Vec3): void;
+    setRelativeCenter(c: Vec3): void;
+    protected _updateRTCEyePosition(): void;
+    draw(): void;
+    drawTransparent(): void;
+    add(geoObject: GeoObject): void;
+    remove(geoObject: GeoObject): void;
+    _clearDataTagQueue(): void;
+    _removeGeoObject(geoObject: GeoObject): void;
+}

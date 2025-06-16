@@ -20,7 +20,8 @@ import {
     Program,
     Vec4,
     Vec2,
-    GeoImage
+    GeoImage,
+    WMS
 } from "../../lib/og.es.js";
 
 let cameraLayer = new Vector("camera", {
@@ -30,25 +31,68 @@ let cameraLayer = new Vector("camera", {
 
 let camProj = new GeoImage("Cam.Proj", {
     src: "test4.jpg",
-    corners: [[0, 1], [1, 1], [1, 0], [0, 0]],
+    corners: [
+        [0, 1],
+        [1, 1],
+        [1, 0],
+        [0, 0]
+    ],
     visibility: true,
     isBaseLayer: false,
     opacity: 0.7
 });
 
+/*const ne = new WMS("Natural Earth", {
+    visibility: true,
+    isBaseLayer: false,
+    url: "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi",
+    layers: "MODIS_Terra_CorrectedReflectance_TrueColor",
+    version: "1.1.1",
+    opacity: 0.5,
+    extra: {
+        transparent: true
+    }
+});*/
+/*
+// should work, but data source is not available
+const ne = new WMS("Natural Earth", {
+    visibility: true,
+    isBaseLayer: false,
+    url: "https://openglobus.org/geoserver/wms",
+    layers: "tiger-ny",
+    version: "1.1.1",
+    opacity: 0.7,
+    extra: {
+        transparent: true
+    }
+});*/
+
+const ne = new WMS("gzp", {
+    url: "https://inspire.lfrz.gv.at/000901/ows",
+    layers: "WLV_GZP",
+    visibility: true,
+    version: "1.1.1",
+    imageWidth: 512,
+    imageHeight: 512,
+    minZoom: 6,
+    maxZoom: 19
+});
+
 const globus = new Globe({
     target: "earth",
     name: "Earth",
-    terrain: new GlobusRgbTerrain("mt"/*, {
+    terrain: new GlobusRgbTerrain(
+        "mt" /*, {
         maxZoom: 17,
         imageSize: 256
-    }*/),
-    layers: [new OpenStreetMap(), new Bing(), cameraLayer, camProj],
+    }*/
+    ),
+    layers: [new OpenStreetMap(), ne, cameraLayer, camProj],
     atmosphereEnabled: false,
     fontsSrc: "../../res/fonts",
     sun: {
         stopped: false
-    },
+    }
     //dpi: 0.8
 });
 
@@ -61,8 +105,7 @@ globus.planet.addControl(new control.DrawingSwitcher());
 let tempCamera = new PlanetCamera(globus.planet);
 
 function saveCamera() {
-
-    let cam = globus.planet.camera
+    let cam = globus.planet.camera;
     tempCamera.copy(cam);
     depthHandler.camera.copy(cam);
 
@@ -96,7 +139,11 @@ globus.planet.renderer.events.on("charkeypress", input.KEY_V, () => {
 });
 
 let cameraObj = Object3d.createFrustum();
-let frustumScale = Object3d.getFrustumScaleByCameraAspectRatio(1000, globus.planet.camera.getViewAngle(), globus.planet.camera.getAspectRatio());
+let frustumScale = Object3d.getFrustumScaleByCameraAspectRatio(
+    1000,
+    globus.planet.camera.getViewAngle(),
+    globus.planet.camera.getAspectRatio()
+);
 //let frustumScale = Object3d.getFrustumScaleByCameraAngles(140, 35, 35);
 
 let cameraEntity = new Entity({
@@ -112,7 +159,6 @@ let cameraEntity = new Entity({
 
 cameraLayer.add(cameraEntity);
 
-
 function camera_depth() {
     return new Program("camera_depth", {
         uniforms: {
@@ -120,14 +166,14 @@ function camera_depth() {
             viewMatrix: "mat4",
             height: "float",
             eyePositionHigh: "vec3",
-            eyePositionLow: "vec3",
-        }, attributes: {
+            eyePositionLow: "vec3"
+        },
+        attributes: {
             aVertexPositionHigh: "vec3",
             aVertexPositionLow: "vec3"
         },
 
-        vertexShader:
-            `#version 300 es
+        vertexShader: `#version 300 es
             
             precision highp float;
 
@@ -158,8 +204,7 @@ function camera_depth() {
                 gl_Position =  m * vec4(highDiff * step(1.0, length(highDiff)) + lowDiff, 1.0);    
             }`,
 
-        fragmentShader:
-            `#version 300 es
+        fragmentShader: `#version 300 es
             
             precision highp float;
             
@@ -182,22 +227,23 @@ let depthCamera = new PlanetCamera(globus.planet, {
     width: CAM_WIDTH,
     height: CAM_HEIGHT,
     viewAngle: 45
-})
+});
 
 let depthFramebuffer = new Framebuffer(globus.planet.renderer.handler, {
     width: CAM_WIDTH,
     height: CAM_HEIGHT,
-    targets: [{
-        internalFormat: "RGBA16F",
-        type: "FLOAT",
-        attachment: "COLOR_ATTACHMENT",
-        readAsync: true
-    }],
+    targets: [
+        {
+            internalFormat: "RGBA16F",
+            type: "FLOAT",
+            attachment: "COLOR_ATTACHMENT",
+            readAsync: true
+        }
+    ],
     useDepth: true
 });
 
 function getDistanceFromPixel(x, y, camera, framebuffer) {
-
     let px = new Vec2(x, y);
 
     let nx = px.x / framebuffer.width;
@@ -208,7 +254,6 @@ function getDistanceFromPixel(x, y, camera, framebuffer) {
     let dist = 0;
 
     framebuffer.readData(nx, ny, ddd, 0);
-
 
     if (ddd[0] === 0) {
         return 0;
@@ -245,94 +290,101 @@ function getLonLatFromPixelTerrain(x, y, camera, framebuffer) {
     }
 }
 
-
-globus.planet.addControl(new control.KeyboardNavigation({
-    camera: depthCamera
-}));
-
-let depthHandler = new control.CameraFrameHandler({
-        camera: depthCamera,
-        frameBuffer: depthFramebuffer,
-        handler: (cam, framebuffer, gl) => {
-
-            framebuffer.activate();
-
-            gl.clearColor(0.0, 0.0, 0.0, 1.0);
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-            gl.disable(gl.BLEND);
-
-            let sh;
-            let h = framebuffer.handler;
-            h.programs.camera_depth.activate();
-            sh = h.programs.camera_depth._program;
-            let shu = sh.uniforms;
-
-            gl.uniformMatrix4fv(shu.viewMatrix, false, cam.getViewMatrix());
-            gl.uniformMatrix4fv(shu.projectionMatrix, false, cam.getProjectionMatrix());
-
-            gl.uniform3fv(shu.eyePositionHigh, cam.eyeHigh);
-            gl.uniform3fv(shu.eyePositionLow, cam.eyeLow);
-
-            // drawing planet nodes
-            let rn = globus.planet._renderedNodes;
-
-            let i = rn.length;
-            while (i--) {
-                if (rn[i].segment._transitionOpacity >= 1) {
-                    rn[i].segment.depthRendering(sh);
-                }
-            }
-
-            for (let i = 0; i < globus.planet._fadingOpaqueSegments.length; ++i) {
-                globus.planet._fadingOpaqueSegments[i].depthRendering(sh);
-            }
-
-            framebuffer.deactivate();
-
-            //gl.enable(gl.BLEND);
-
-            framebuffer.readPixelBuffersAsync();
-
-            let lt = getLonLatFromPixelTerrain(1, 1, cam, framebuffer),
-                rt = getLonLatFromPixelTerrain(framebuffer.width - 1, 1, cam, framebuffer);
-
-            let rb = getLonLatFromPixelTerrain(framebuffer.width - 1, framebuffer.height - 1, cam, framebuffer),
-                lb = getLonLatFromPixelTerrain(1, framebuffer.height - 1, cam, framebuffer);
-
-            if (lt && rt && rb && lb) {
-                camProj.setCorners([[lt.lon, lt.lat], [rt.lon, rt.lat], [rb.lon, rb.lat], [lb.lon, lb.lat]]);
-            }
-
-            // let r = globus.renderer;
-            //
-            // // PASS to depth visualization
-            // r.screenDepthFramebuffer.activate();
-            // sh = h.programs.depth;
-            // let p = sh._program;
-            //
-            // gl.bindBuffer(gl.ARRAY_BUFFER, r.screenFramePositionBuffer);
-            // gl.vertexAttribPointer(p.attributes.corners, 2, gl.FLOAT, false, 0, 0);
-            //
-            // sh.activate();
-            //
-            // gl.activeTexture(gl.TEXTURE0);
-            // gl.bindTexture(gl.TEXTURE_2D, framebuffer.textures[0]);
-            // gl.uniform1i(p.uniforms.depthTexture, 0);
-            //
-            // gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-            //
-            // r.screenDepthFramebuffer.deactivate();
-            // gl.enable(gl.BLEND);
-
-
-            cameraEntity.setCartesian3v(depthCamera.eye);
-            cameraEntity.setPitch(depthCamera.getPitch());
-            cameraEntity.setYaw(depthCamera.getYaw());
-            cameraEntity.setRoll(depthCamera.getRoll());
-        }
-    }
+globus.planet.addControl(
+    new control.KeyboardNavigation({
+        camera: depthCamera
+    })
 );
 
+let depthHandler = new control.CameraFrameHandler({
+    camera: depthCamera,
+    frameBuffer: depthFramebuffer,
+    handler: (cam, framebuffer, gl) => {
+        framebuffer.activate();
+
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.disable(gl.BLEND);
+
+        let sh;
+        let h = framebuffer.handler;
+        h.programs.camera_depth.activate();
+        sh = h.programs.camera_depth._program;
+        let shu = sh.uniforms;
+
+        gl.uniformMatrix4fv(shu.viewMatrix, false, cam.getViewMatrix());
+        gl.uniformMatrix4fv(shu.projectionMatrix, false, cam.getProjectionMatrix());
+
+        gl.uniform3fv(shu.eyePositionHigh, cam.eyeHigh);
+        gl.uniform3fv(shu.eyePositionLow, cam.eyeLow);
+
+        // drawing planet nodes
+        let rn = globus.planet._renderedNodes;
+
+        let i = rn.length;
+        while (i--) {
+            if (rn[i].segment._transitionOpacity >= 1) {
+                rn[i].segment.depthRendering(sh);
+            }
+        }
+
+        for (let i = 0; i < globus.planet._fadingOpaqueSegments.length; ++i) {
+            globus.planet._fadingOpaqueSegments[i].depthRendering(sh);
+        }
+
+        framebuffer.deactivate();
+
+        //gl.enable(gl.BLEND);
+
+        framebuffer.readPixelBuffersAsync();
+
+        let lt = getLonLatFromPixelTerrain(1, 1, cam, framebuffer),
+            rt = getLonLatFromPixelTerrain(framebuffer.width - 1, 1, cam, framebuffer);
+
+        let rb = getLonLatFromPixelTerrain(
+                framebuffer.width - 1,
+                framebuffer.height - 1,
+                cam,
+                framebuffer
+            ),
+            lb = getLonLatFromPixelTerrain(1, framebuffer.height - 1, cam, framebuffer);
+
+        if (lt && rt && rb && lb) {
+            camProj.setCorners([
+                [lt.lon, lt.lat],
+                [rt.lon, rt.lat],
+                [rb.lon, rb.lat],
+                [lb.lon, lb.lat]
+            ]);
+        }
+
+        // let r = globus.renderer;
+        //
+        // // PASS to depth visualization
+        // r.screenDepthFramebuffer.activate();
+        // sh = h.programs.depth;
+        // let p = sh._program;
+        //
+        // gl.bindBuffer(gl.ARRAY_BUFFER, r.screenFramePositionBuffer);
+        // gl.vertexAttribPointer(p.attributes.corners, 2, gl.FLOAT, false, 0, 0);
+        //
+        // sh.activate();
+        //
+        // gl.activeTexture(gl.TEXTURE0);
+        // gl.bindTexture(gl.TEXTURE_2D, framebuffer.textures[0]);
+        // gl.uniform1i(p.uniforms.depthTexture, 0);
+        //
+        // gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        //
+        // r.screenDepthFramebuffer.deactivate();
+        // gl.enable(gl.BLEND);
+
+        cameraEntity.setCartesian3v(depthCamera.eye);
+        cameraEntity.setPitch(depthCamera.getPitch());
+        cameraEntity.setYaw(depthCamera.getYaw());
+        cameraEntity.setRoll(depthCamera.getRoll());
+    }
+});
 
 globus.renderer.events.on("draw", () => {
     let r = globus.renderer;
@@ -358,7 +410,8 @@ globus.renderer.events.on("draw", () => {
     gl.enable(gl.BLEND);
 });
 
-globus.planet.addControl(new control.CameraFrameComposer({
+globus.planet.addControl(
+    new control.CameraFrameComposer({
         handlers: [depthHandler]
-    }
-));
+    })
+);
