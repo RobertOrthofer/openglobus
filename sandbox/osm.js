@@ -20,17 +20,104 @@ import {
     Program,
     Vec4,
     Vec2,
-    GeoImage
+    GeoImage,
+    CanvasTiles
 } from "../../lib/og.es.js";
+
+let color = window.document.querySelector('#backgroundColorPicker').value;
+
+const tg = new CanvasTiles("Tile grid", {
+    visibility: true,
+    isBaseLayer: false,
+    drawTile: function (material, applyCanvas) {
+        if (!material.segment) {
+            applyCanvas();
+            return;
+        }
+        //
+        // This is important create canvas here!
+        //
+        let cnv = document.createElement("canvas");
+        let ctx = cnv.getContext("2d");
+        cnv.width = 256;
+        cnv.height = 256;
+
+        //Clear canvas
+        ctx.clearRect(0, 0, cnv.width, cnv.height);
+
+        //Draw border
+        ctx.beginPath();
+        ctx.rect(0, 0, cnv.width, cnv.height);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'black';
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.stroke();
+
+        let size;
+
+        if (material.segment.isPole) {
+            let ext = material.segment.getExtentLonLat();
+
+            ctx.fillStyle = 'black';
+            ctx.font = 'normal ' + 29 + 'px Verdana';
+
+            ctx.textAlign = 'center';
+            ctx.fillText(`${ext.northEast.lon.toFixed(3)} ${ext.northEast.lat.toFixed(3)}`, cnv.width / 2, cnv.height / 2 + 20);
+            ctx.fillText(`${ext.southWest.lon.toFixed(3)} ${ext.southWest.lat.toFixed(3)}`, cnv.width / 2, cnv.height / 2 - 20);
+        } else {
+            //Draw text
+            if (material.segment.tileZoom > 14) {
+                size = "26";
+            } else {
+                size = "32";
+            }
+            ctx.fillStyle = 'black';
+            ctx.font = 'normal ' + size + 'px Verdana';
+            ctx.textAlign = 'center';
+            ctx.fillText(material.segment.tileX + "," + material.segment.tileY + "," + material.segment.tileZoom, cnv.width / 2, cnv.height / 2);
+        }
+
+        const timeout = (Math.random() * (500 - 100 + 1)) + 100; // random from 100 to 500 ms, for demo purpose only
+        //Draw canvas tile
+        window.setTimeout(() => {
+            // og could dismiss the canvas in the meantime because of user interactions
+            if (!material.segment?.initialized) {
+                return;
+            }
+            applyCanvas(cnv);
+        }, timeout)
+    }
+});
+
+
+const osmLayer = new OpenStreetMap()
+
 
 const globus = new Globe({
     target: "earth",
     name: "Earth",
     terrain: new GlobusRgbTerrain(),
-    layers: [new OpenStreetMap(), new Bing()],
+    layers: [osmLayer, tg],
     atmosphereEnabled: false,
     fontsSrc: "../../res/fonts",
 });
+
+let timer;
+// this should be debounced in production
+window.document.querySelector('#backgroundColorPicker').addEventListener('input', (event) => {
+    tg.abortLoading();
+    if (timer) {
+        window.clearTimeout(timer);
+    }
+    globus.planet.quadTreeStrategy.clearLayerMaterial(tg, true);
+    tg.animated = true; // temporarily mark as animated to force redraw without dismissing existing tiles
+    color = event.target.value;
+    timer = window.setTimeout(() => {
+        timer = undefined;
+        tg.animated = false;
+    }, 500) // wait for a timeout then remove the "animated" flag, because it makes user interactions laggy.
+})
 
 globus.planet.addControl(new control.TimelineControl());
 globus.planet.addControl(new control.CompassButton());
@@ -59,47 +146,7 @@ globus.planet.renderer.events.on("charkeypress", input.KEY_V, () => {
     restoreCamera();
 });
 
-let depthHandler = new control.CameraDepthHandler();
 
-globus.planet.addControl(depthHandler);
-
-let depthPreview = new control.FramebufferPreview({
-    title: "depthHandler",
-    framebuffer: depthHandler.framebuffer,
-    image: `float linearizeDepth(float z, float near, float far) {
-                float ndcZ = z * 2.0 - 1.0;
-                return (2.0 * near * far) / (far + near - ndcZ * (far - near));
-            }
-            
-            void mainImage(out vec4 fragColor, in vec2 fragCoord){
-                float near = 10.0;
-                float far = 10000.0;          
-                float depth = texture(inputTexture, fragCoord).r;
-                float linearDepth = linearizeDepth(depth, near, far);
-                float normalized = (linearDepth - near) / (far - near);
-                fragColor = vec4(vec3(normalized), 1.0);
-            }`
-});
-
-globus.planet.addControl(depthPreview);
-globus.planet.addControl(new control.KeyboardNavigation({
-        camera: depthHandler.camera
-    })
-);
-
-// let toneMappingFramebufferPreview = new control.FramebufferPreview({
-//     title: "toneMappingFramebuffer",
-//     framebuffer: globus.renderer.toneMappingFramebuffer,
-//     flippedUV: true
-// });
-// globus.planet.addControl(toneMappingFramebufferPreview);
-
-// let pickingFramebufferPreview = new control.FramebufferPreview({
-//     title: "pickingFramebuffer",
-//     framebuffer: globus.renderer.pickingFramebuffer,
-//     flippedUV: true
-// });
-// globus.planet.addControl(pickingFramebufferPreview);
 
 globus.planet.renderer.controls.SimpleSkyBackground.colorOne = "black";
 globus.planet.renderer.controls.SimpleSkyBackground.colorTwo = "black";
