@@ -333,6 +333,7 @@ class CanvasTiles extends Layer {
                 if ((material.layer as CanvasTiles).animated) {
                     requestAnimationFrame(() => {
                         if (material.segment) {
+                            //
                             this.drawTile(material, function (canvas) {
                                 material.applyImage(canvas);
                             });

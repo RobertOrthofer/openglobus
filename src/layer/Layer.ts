@@ -314,6 +314,8 @@ class Layer {
 
         this._isPreloadDone = false;
 
+        console.log(options);
+        console.log(`preLoadZoomLevels: ${options.preLoadZoomLevels}`);
         this._preLoadZoomLevels = options.preLoadZoomLevels || [0, 1];
 
         this._ambient = null;
@@ -706,7 +708,8 @@ class Layer {
             //this._planet!._renderCompleted = false;
             segment.quadTreeStrategy._renderCompleted = false;
         }
-
+        console.log('DRAWTILE');
+        console.log(m.segment);
         this.applyMaterial(m, true);
     }
 
@@ -732,14 +735,15 @@ class Layer {
 
         for (let i = 0, len = node.nodes.length; i < len; i++) {
             if (node.nodes[i]) {
+                console.log(`load node ${node.nodes[i]}`);
                 this._preLoadRecursive(node.nodes[i], maxZoom);
             }
         }
     }
 
     protected _preLoad() {
+        console.log('PRELOAD');
         if (this._planet && this._preLoadZoomLevels.length) {
-
             let p = this._planet,
                 maxZoom = Math.max(...this._preLoadZoomLevels);
 

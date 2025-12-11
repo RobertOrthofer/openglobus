@@ -83,6 +83,7 @@ const tg = new CanvasTiles("Tile grid", {
         window.setTimeout(() => {
             // og could dismiss the canvas in the meantime because of user interactions
             if (!material.segment?.initialized) {
+                console.log('not initialized');
                 return;
             }
             applyCanvas(cnv);

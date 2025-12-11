@@ -162,6 +162,7 @@ class Globe {
 
     constructor(options: IGlobeParams) {
 
+        console.log('LOCAL OPENGLOBUS BUILD');
         this.$target = null;
 
         this._instanceID = `__globus${Globe.__counter__++ ? Globe.__counter__ : ""}__`;
