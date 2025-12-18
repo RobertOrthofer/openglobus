@@ -78,7 +78,7 @@ const tg = new CanvasTiles("Tile grid", {
             ctx.fillText(material.segment.tileX + "," + material.segment.tileY + "," + material.segment.tileZoom, cnv.width / 2, cnv.height / 2);
         }
 
-        const timeout = (Math.random() * (500 - 100 + 1)) + 100; // random from 100 to 500 ms, for demo purpose only
+        const timeout = (Math.random() * (200 - 100 + 1)) + 100; // random from 100 to 200 ms, for demo purpose only
         //Draw canvas tile
         window.setTimeout(() => {
             // og could dismiss the canvas in the meantime because of user interactions
@@ -117,7 +117,7 @@ window.document.querySelector('#backgroundColorPicker').addEventListener('input'
     timer = window.setTimeout(() => {
         timer = undefined;
         tg.animated = false;
-    }, 500) // wait for a timeout then remove the "animated" flag, because it makes user interactions laggy.
+    }, 200) // wait for a timeout then remove the "animated" flag, because it makes user interactions laggy.
 })
 
 globus.planet.addControl(new control.TimelineControl());
